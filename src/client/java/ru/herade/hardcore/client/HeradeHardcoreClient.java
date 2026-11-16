@@ -60,8 +60,8 @@ public final class HeradeHardcoreClient implements ClientModInitializer {
                         serverPlayer.setHealth(20.0F);
                     }
                 });
-                client.player.displayClientMessage(
-                        Component.literal("Подготовка к марафону: 20 секунд"), true);
+                client.player.sendOverlayMessage(
+                        Component.literal("Подготовка к марафону: 20 секунд"));
             }
 
             if (preparing) {
@@ -69,13 +69,13 @@ public final class HeradeHardcoreClient implements ClientModInitializer {
 
                 if (preparationTicks <= 0) {
                     preparing = false;
-                    client.gui.setTitle(Component.literal("ХАРДКОР НАЧАЛСЯ!"));
-                    client.player.displayClientMessage(
-                            Component.literal("Задача: пройти Minecraft или смерть!"), false);
+                    client.gui.hud.setTitle(Component.literal("ХАРДКОР НАЧАЛСЯ!"));
+                    client.player.sendSystemMessage(
+                            Component.literal("Задача: пройти Minecraft или смерть!"));
                 } else if (preparationTicks % 20 == 0) {
                     int seconds = (preparationTicks + 19) / 20;
-                    client.player.displayClientMessage(
-                            Component.literal("Подготовка: " + seconds + " сек."), true);
+                    client.player.sendOverlayMessage(
+                            Component.literal("Подготовка: " + seconds + " сек."));
                 }
             }
         });
