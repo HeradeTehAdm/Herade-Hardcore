@@ -52,9 +52,10 @@ public final class HeradeHardcoreClient implements ClientModInitializer {
                 client.player.setHealth(20.0F);
                 // The integrated server owns the authoritative health value.
                 // Schedule the update on its thread to avoid cross-thread entity access.
-                client.getSingleplayerServer().execute(() -> {
-                    var serverPlayer = client.getSingleplayerServer().getPlayerList()
-                            .getPlayer(client.player.getUUID());
+                var integratedServer = client.getSingleplayerServer();
+                var playerId = client.player.getUUID();
+                integratedServer.execute(() -> {
+                    var serverPlayer = integratedServer.getPlayerList().getPlayer(playerId);
                     if (serverPlayer != null) {
                         serverPlayer.setHealth(20.0F);
                     }
