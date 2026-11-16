@@ -11,7 +11,6 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.GameType;
 
 public final class HeradeHardcoreClient implements ClientModInitializer {
@@ -127,9 +126,6 @@ public final class HeradeHardcoreClient implements ClientModInitializer {
                     client.player.playSound(SoundEvents.WITHER_SPAWN, 1.0F, 0.75F);
                     client.player.setHealth(STARTING_RUN_HEALTH);
                     integratedServer.execute(() -> {
-                        integratedServer.getGameRules()
-                                .getRule(GameRules.RULE_NATURAL_REGENERATION)
-                                .set(false, integratedServer);
                         var serverPlayer = integratedServer.getPlayerList().getPlayer(playerId);
                         if (serverPlayer != null) {
                             serverPlayer.setHealth(STARTING_RUN_HEALTH);
@@ -145,5 +141,9 @@ public final class HeradeHardcoreClient implements ClientModInitializer {
 
     public static boolean isPreparing() {
         return preparing;
+    }
+
+    public static boolean isRunStarted() {
+        return runStarted;
     }
 }
