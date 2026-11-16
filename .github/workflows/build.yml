@@ -37,6 +37,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION="v0.1.0"
-          gh release view "$VERSION" >/dev/null 2>&1 || gh release create "$VERSION" --title "Herade Hardcore 0.1.0" --notes "Первая сборка Herade Hardcore для Minecraft 26.3 (Fabric). JAR собран автоматически из main после успешной проверки GitHub Actions."
-          gh release upload "$VERSION" build/libs/herade-hardcore-0.1.0.jar --clobber
+          VERSION="v0.1.1"
+          gh release view "$VERSION" >/dev/null 2>&1 || gh release create "$VERSION" --title "Herade Hardcore 0.1.1" --notes "Обновление Herade Hardcore: исправления здоровья, игрового режима и старта забега для Minecraft 26.3 (Fabric). JAR собран автоматически из main после успешной проверки GitHub Actions."
+          gh release upload "$VERSION" build/libs/herade-hardcore-0.1.1.jar --clobber
