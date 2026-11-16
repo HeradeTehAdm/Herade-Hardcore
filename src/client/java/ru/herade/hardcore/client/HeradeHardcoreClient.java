@@ -7,14 +7,20 @@ import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.level.GameType;
 
 public final class HeradeHardcoreClient implements ClientModInitializer {
     private static final int PREPARATION_TICKS = 20 * 20;
+    private static final int TRANSITION_TICKS = 20 * 3;
+    private static final float CHALLENGE_HEALTH = 10.0F;
 
     private static volatile boolean preparing;
     private static int preparationTicks;
+    private static int transitionTicks;
     private static Object observedServer;
 
     @Override
@@ -34,48 +40,79 @@ public final class HeradeHardcoreClient implements ClientModInitializer {
                 preparing ? InteractionResult.FAIL : InteractionResult.PASS);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            // This challenge is deliberately limited to a private singleplayer world.
-            // Opening the world to LAN disables the challenge rather than affecting other players.
+            // The challenge is limited to a private singleplayer world.
             if (client.level == null || client.player == null
                     || client.getSingleplayerServer() == null || client.isMultiplayerServer()) {
                 observedServer = null;
                 preparing = false;
                 preparationTicks = 0;
+                transitionTicks = 0;
                 return;
             }
 
-            Object currentServer = client.getSingleplayerServer();
+            var integratedServer = client.getSingleplayerServer();
+            Object currentServer = integratedServer;
+
             if (currentServer != observedServer) {
                 observedServer = currentServer;
                 preparing = true;
                 preparationTicks = PREPARATION_TICKS;
-                client.player.setHealth(20.0F);
-                // The integrated server owns the authoritative health value.
-                // Schedule the update on its thread to avoid cross-thread entity access.
-                var integratedServer = client.getSingleplayerServer();
+                transitionTicks = 0;
+
                 var playerId = client.player.getUUID();
                 integratedServer.execute(() -> {
                     var serverPlayer = integratedServer.getPlayerList().getPlayer(playerId);
                     if (serverPlayer != null) {
-                        serverPlayer.setHealth(20.0F);
+                        serverPlayer.setHealth(CHALLENGE_HEALTH);
+                        serverPlayer.setGameMode(GameType.SURVIVAL);
                     }
                 });
+
+                client.player.setHealth(CHALLENGE_HEALTH);
                 client.player.sendOverlayMessage(
                         Component.literal("Подготовка к марафону: 20 секунд"));
             }
+
+            // Re-apply Survival so changing to Creative or another mode cannot bypass the run.
+            var playerId = client.player.getUUID();
+            integratedServer.execute(() -> {
+                var serverPlayer = integratedServer.getPlayerList().getPlayer(playerId);
+                if (serverPlayer != null && serverPlayer.gameMode.getGameModeForPlayer() != GameType.SURVIVAL) {
+                    serverPlayer.setGameMode(GameType.SURVIVAL);
+                }
+            });
 
             if (preparing) {
                 preparationTicks--;
 
                 if (preparationTicks <= 0) {
                     preparing = false;
-                    client.gui.hud.setTitle(Component.literal("ХАРДКОР НАЧАЛСЯ!"));
-                    client.player.sendSystemMessage(
-                            Component.literal("Задача: пройти Minecraft или смерть!"));
+                    transitionTicks = TRANSITION_TICKS;
+                    client.player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                            net.minecraft.world.effect.MobEffects.DARKNESS,
+                            TRANSITION_TICKS, 0, false, false, false));
+                    integratedServer.execute(() -> {
+                        var serverPlayer = integratedServer.getPlayerList().getPlayer(playerId);
+                        if (serverPlayer != null) {
+                            serverPlayer.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                                    net.minecraft.world.effect.MobEffects.DARKNESS,
+                                    TRANSITION_TICKS, 0, false, false, false));
+                        }
+                    });
                 } else if (preparationTicks % 20 == 0) {
                     int seconds = (preparationTicks + 19) / 20;
                     client.player.sendOverlayMessage(
                             Component.literal("Подготовка: " + seconds + " сек."));
+                }
+            } else if (transitionTicks > 0) {
+                transitionTicks--;
+                if (transitionTicks == 0) {
+                    client.gui.hud.setTitle(
+                            Component.literal("ХАРДКОР НАЧАЛСЯ!").withStyle(ChatFormatting.RED));
+                    client.player.playSound(SoundEvents.WITHER_SPAWN, 1.0F, 0.75F);
+                    client.player.sendSystemMessage(Component.literal("Задачи: пройти майнкрафт"));
+                    client.player.sendSystemMessage(
+                            Component.literal("ItsNikitinka: Удачи умереть бро)))"));
                 }
             }
         });
