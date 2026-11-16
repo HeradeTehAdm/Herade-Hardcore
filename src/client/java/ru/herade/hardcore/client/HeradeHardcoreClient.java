@@ -13,7 +13,7 @@ import net.minecraft.world.InteractionResult;
 public final class HeradeHardcoreClient implements ClientModInitializer {
     private static final int PREPARATION_TICKS = 20 * 20;
 
-    private static boolean preparing;
+    private static volatile boolean preparing;
     private static int preparationTicks;
     private static Object observedServer;
 
@@ -50,6 +50,15 @@ public final class HeradeHardcoreClient implements ClientModInitializer {
                 preparing = true;
                 preparationTicks = PREPARATION_TICKS;
                 client.player.setHealth(20.0F);
+                // The integrated server owns the authoritative health value.
+                // Schedule the update on its thread to avoid cross-thread entity access.
+                client.getSingleplayerServer().execute(() -> {
+                    var serverPlayer = client.getSingleplayerServer().getPlayerList()
+                            .getPlayer(client.player.getUUID());
+                    if (serverPlayer != null) {
+                        serverPlayer.setHealth(20.0F);
+                    }
+                });
                 client.player.displayClientMessage(
                         Component.literal("Подготовка к марафону: 20 секунд"), true);
             }
