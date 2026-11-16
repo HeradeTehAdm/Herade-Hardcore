@@ -11,16 +11,20 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.GameType;
 
 public final class HeradeHardcoreClient implements ClientModInitializer {
     private static final int PREPARATION_TICKS = 20 * 20;
     private static final int TRANSITION_TICKS = 20 * 3;
-    private static final float CHALLENGE_HEALTH = 10.0F;
+    private static final float PREPARATION_HEALTH = 10.0F;
+    private static final float STARTING_RUN_HEALTH = 1.0F;
+    private static final float EXTRA_EXHAUSTION_PER_TICK = 0.004F;
 
     private static volatile boolean preparing;
     private static int preparationTicks;
     private static int transitionTicks;
+    private static boolean runStarted;
     private static Object observedServer;
 
     @Override
@@ -47,28 +51,29 @@ public final class HeradeHardcoreClient implements ClientModInitializer {
                 preparing = false;
                 preparationTicks = 0;
                 transitionTicks = 0;
+                runStarted = false;
                 return;
             }
 
             var integratedServer = client.getSingleplayerServer();
-            Object currentServer = integratedServer;
 
-            if (currentServer != observedServer) {
-                observedServer = currentServer;
+            if (integratedServer != observedServer) {
+                observedServer = integratedServer;
                 preparing = true;
                 preparationTicks = PREPARATION_TICKS;
                 transitionTicks = 0;
+                runStarted = false;
 
                 var playerId = client.player.getUUID();
                 integratedServer.execute(() -> {
                     var serverPlayer = integratedServer.getPlayerList().getPlayer(playerId);
                     if (serverPlayer != null) {
-                        serverPlayer.setHealth(CHALLENGE_HEALTH);
+                        serverPlayer.setHealth(PREPARATION_HEALTH);
                         serverPlayer.setGameMode(GameType.SURVIVAL);
                     }
                 });
 
-                client.player.setHealth(CHALLENGE_HEALTH);
+                client.player.setHealth(PREPARATION_HEALTH);
                 client.player.sendOverlayMessage(
                         Component.literal("Подготовка к марафону: 20 секунд"));
             }
@@ -79,6 +84,15 @@ public final class HeradeHardcoreClient implements ClientModInitializer {
                 var serverPlayer = integratedServer.getPlayerList().getPlayer(playerId);
                 if (serverPlayer != null && serverPlayer.gameMode.getGameModeForPlayer() != GameType.SURVIVAL) {
                     serverPlayer.setGameMode(GameType.SURVIVAL);
+                }
+
+                if (serverPlayer != null && runStarted) {
+                    // Keep the challenge at exactly half a heart; healing cannot restore health.
+                    if (serverPlayer.getHealth() > STARTING_RUN_HEALTH) {
+                        serverPlayer.setHealth(STARTING_RUN_HEALTH);
+                    }
+                    // A small additional exhaustion drain makes hunger fall faster, but not instantly.
+                    serverPlayer.getFoodData().addExhaustion(EXTRA_EXHAUSTION_PER_TICK);
                 }
             });
 
@@ -107,9 +121,20 @@ public final class HeradeHardcoreClient implements ClientModInitializer {
             } else if (transitionTicks > 0) {
                 transitionTicks--;
                 if (transitionTicks == 0) {
+                    runStarted = true;
                     client.gui.hud.setTitle(
                             Component.literal("ХАРДКОР НАЧАЛСЯ!").withStyle(ChatFormatting.RED));
                     client.player.playSound(SoundEvents.WITHER_SPAWN, 1.0F, 0.75F);
+                    client.player.setHealth(STARTING_RUN_HEALTH);
+                    integratedServer.execute(() -> {
+                        integratedServer.getGameRules()
+                                .getRule(GameRules.RULE_NATURAL_REGENERATION)
+                                .set(false, integratedServer);
+                        var serverPlayer = integratedServer.getPlayerList().getPlayer(playerId);
+                        if (serverPlayer != null) {
+                            serverPlayer.setHealth(STARTING_RUN_HEALTH);
+                        }
+                    });
                     client.player.sendSystemMessage(Component.literal("Задачи: пройти майнкрафт"));
                     client.player.sendSystemMessage(
                             Component.literal("ItsNikitinka: Удачи умереть бро)))"));
