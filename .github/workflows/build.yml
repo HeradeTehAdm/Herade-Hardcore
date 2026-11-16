@@ -1,4 +1,4 @@
-name: Build
+name: Build and Release
 
 on:
   push:
@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -29,3 +32,11 @@ jobs:
         with:
           name: herade-hardcore-build
           path: build/libs/*.jar
+      - name: Publish GitHub Release
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="v0.1.0"
+          gh release view "$VERSION" >/dev/null 2>&1 || gh release create "$VERSION" --title "Herade Hardcore 0.1.0" --notes "Первая сборка Herade Hardcore для Minecraft 26.3 (Fabric). JAR собран автоматически из main после успешной проверки GitHub Actions."
+          gh release upload "$VERSION" build/libs/herade-hardcore-0.1.0.jar --clobber
