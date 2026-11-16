@@ -3,7 +3,8 @@
   "package": "ru.herade.hardcore.mixin",
   "compatibilityLevel": "JAVA_25",
   "client": [
-    "ItemEntityMixin"
+    "ItemEntityMixin",
+    "LivingEntityMixin"
   ],
   "injectors": {
     "defaultRequire": 1
