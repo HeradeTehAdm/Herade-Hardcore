@@ -22,6 +22,7 @@ loom {
 }
 
 repositories {
+    maven { url = 'https://maven.fabricmc.net/' }
     mavenCentral()
 }
 
