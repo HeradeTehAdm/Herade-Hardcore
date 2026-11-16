@@ -23,7 +23,7 @@ public final class HeradeHardcoreClient implements ClientModInitializer {
     private static volatile boolean preparing;
     private static int preparationTicks;
     private static int transitionTicks;
-    private static boolean runStarted;
+    private static volatile boolean runStarted;
     private static Object observedServer;
 
     @Override
