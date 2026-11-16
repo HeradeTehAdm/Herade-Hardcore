@@ -12,12 +12,10 @@ import net.minecraft.world.InteractionResult;
 
 public final class HeradeHardcoreClient implements ClientModInitializer {
     private static final int PREPARATION_TICKS = 20 * 20;
-    private static final int TITLE_TICKS = 70;
 
     private static boolean preparing;
     private static int preparationTicks;
-    private static int titleTicks;
-    private static Object observedLevel;
+    private static Object observedServer;
 
     @Override
     public void onInitializeClient() {
@@ -36,19 +34,21 @@ public final class HeradeHardcoreClient implements ClientModInitializer {
                 preparing ? InteractionResult.FAIL : InteractionResult.PASS);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (client.level == null || client.player == null) {
-                observedLevel = null;
+            // This challenge is deliberately limited to a private singleplayer world.
+            // Opening the world to LAN disables the challenge rather than affecting other players.
+            if (client.level == null || client.player == null
+                    || client.getSingleplayerServer() == null || client.isMultiplayerServer()) {
+                observedServer = null;
                 preparing = false;
                 preparationTicks = 0;
-                titleTicks = 0;
                 return;
             }
 
-            if (client.level != observedLevel) {
-                observedLevel = client.level;
+            Object currentServer = client.getSingleplayerServer();
+            if (currentServer != observedServer) {
+                observedServer = currentServer;
                 preparing = true;
                 preparationTicks = PREPARATION_TICKS;
-                titleTicks = 0;
                 client.player.setHealth(20.0F);
                 client.player.displayClientMessage(
                         Component.literal("Подготовка к марафону: 20 секунд"), true);
@@ -59,7 +59,6 @@ public final class HeradeHardcoreClient implements ClientModInitializer {
 
                 if (preparationTicks <= 0) {
                     preparing = false;
-                    titleTicks = TITLE_TICKS;
                     client.gui.setTitle(Component.literal("ХАРДКОР НАЧАЛСЯ!"));
                     client.player.displayClientMessage(
                             Component.literal("Задача: пройти Minecraft или смерть!"), false);
@@ -68,8 +67,6 @@ public final class HeradeHardcoreClient implements ClientModInitializer {
                     client.player.displayClientMessage(
                             Component.literal("Подготовка: " + seconds + " сек."), true);
                 }
-            } else if (titleTicks > 0) {
-                titleTicks--;
             }
         });
     }
